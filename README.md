@@ -4,6 +4,9 @@ A collection of neural vocoders suitable for singing voice synthesis tasks.
 # English version [README_en.md](README_en.md)
 ## If you have any questions, please open an issue.
 
+# 微调specHiFivae流程
+## 使用Spec2MelEncoder.yaml预处理后训练一个encoder
+## 在ft_specHiFivae.yaml填写相应路径后可直接微调specHiFivae，不用再使用ft_specHiFivae.yaml重新预处理
 
 # 预处理 
 python [process.py](process.py) --config 配置文件 --num_cpu 并行数量 --strx 1 代表 强制绝对路径 0 代表相对路径
