@@ -20,7 +20,7 @@ def dynamic_range_compression_torch(x, C=1, clip_val=1e-9):
     return torch.log(torch.clamp(x, min=clip_val) * C)
 
 
-def wav2spec(config: dict, source: pathlib.Path, save_path: pathlib.Path) -> Tuple[bool, Union[pathlib.Path, str]]:
+def wav2spec(config: dict, source: pathlib.Path, save_path: pathlib.Path, ) -> Tuple[bool, Union[pathlib.Path, str]]:
     mel_spec_transform = PitchAdjustableMelSpectrogram(
         sample_rate=config['audio_sample_rate'],
         n_fft=config['fft_size'],
@@ -29,9 +29,10 @@ def wav2spec(config: dict, source: pathlib.Path, save_path: pathlib.Path) -> Tup
         f_min=config['fmin'],
         f_max=config['fmax'],
         n_mels=config['audio_num_mel_bins'],
+        return_type=config['return_type']
     )
     try:
-        audio, sr = torchaudio.load(source)
+        audio, sr = torchaudio.load(str(source))
         pe_name = config['pe']
         pe_id = PITCH_EXTRACTORS_NAME_TO_ID[pe_name]
         if sr > config['audio_sample_rate']:
@@ -41,11 +42,29 @@ def wav2spec(config: dict, source: pathlib.Path, save_path: pathlib.Path) -> Tup
                 lowpass_filter_width=128)(audio)
         elif sr < config['audio_sample_rate']:
             return False, f"Error: sample rate mismatching in \'{source}\' ({sr} != {config['audio_sample_rate']})."
-        mel = dynamic_range_compression_torch(mel_spec_transform(audio))
-        f0, uv = get_pitch(pe_name, audio.numpy()[0], length=len(mel[0].T), hparams=config, interp_uv=True)
-        if f0 is None:
-            return False, f"Error: failed to get pitch from \'{source}\'."
-        np.savez(save_path, audio=audio[0].numpy(), mel=mel[0].T, f0=f0, uv=uv, pe=pe_id)
+        
+        if config['return_type'] == 'mel':
+            mel = dynamic_range_compression_torch(mel_spec_transform(audio))
+            f0, uv = get_pitch(pe_name, audio.numpy()[0], length=len(mel[0].T), hparams=config, interp_uv=True)
+            if f0 is None:
+                return False, f"Error: failed to get pitch from \'{source}\'."
+            np.savez(save_path, audio=audio[0].numpy(), mel=mel[0].T, f0=f0, uv=uv, pe=pe_id)
+        elif config['return_type'] == 'linear':
+            linear_spec = dynamic_range_compression_torch(mel_spec_transform(audio))
+            f0, uv = get_pitch(pe_name, audio.numpy()[0], length=len(linear_spec[0].T), hparams=config, interp_uv=True)
+            if f0 is None:
+                return False, f"Error: failed to get pitch from \'{source}\'."
+            np.savez(save_path, audio=audio[0].numpy(), linear_spec=linear_spec[0].T, f0=f0, uv=uv, pe=pe_id)
+        elif config['return_type'] == 'mel+linear':
+            mel, linear_spec = mel_spec_transform(audio)
+            mel = dynamic_range_compression_torch(mel)
+            linear_spec = dynamic_range_compression_torch(linear_spec)
+            f0, uv = get_pitch(pe_name, audio.numpy()[0], length=len(linear_spec[0].T), hparams=config, interp_uv=True)
+            if f0 is None:
+                return False, f"Error: failed to get pitch from \'{source}\'."
+            np.savez(save_path, audio=audio[0].numpy(), mel=mel[0].T, linear_spec=linear_spec[0].T, f0=f0, uv=uv, pe=pe_id)
+        else:
+            return False, f"Error: invalid return_type value in config: {config['return_type']}"
     except KeyboardInterrupt:
         raise
     except Exception as e:
@@ -64,7 +83,7 @@ def runx(config, num_cpu, strx):
         pass
     config = pathlib.Path(config)
     config = read_full_config(config)
-    # print_config(config)
+    print(config)
     if strx is None:
         strx = 1
     else:

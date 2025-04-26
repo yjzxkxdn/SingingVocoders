@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from modules.loss.stft_loss import warp_stft
+from modules.loss.stft_loss import warp_stft,RSSLoss
 from utils.wav2mel import PitchAdjustableMelSpectrogram
 
 
@@ -23,7 +23,11 @@ class HiFiloss(nn.Module):
         if config.get('use_stftloss', False):
             self.stft = warp_stft({'fft_sizes': config['loss_fft_sizes'], 'hop_sizes': config['loss_hop_sizes'],
                                    'win_lengths': config['loss_win_lengths']})
+        if config.get('use_RSSloss', False):
+            self.rss = RSSLoss(config['RSS_fft_min'], config['RSS_fft_max'], n_scale=config['RSS_n_scale'],)
+            
         self.use_stftloss = config.get('use_stftloss', False)
+        self.use_RSSloss = config.get('use_RSSloss', False)
 
     def discriminator_loss(self, disc_real_outputs, disc_generated_outputs):
         loss = 0
@@ -89,5 +93,10 @@ class HiFiloss(nn.Module):
             stft_loss = (sc_loss + mag_loss) * self.lab_aux_stft_loss
             loss = mel_loss + stft_loss
             return loss, {'aux_mel_loss': mel_loss, 'aux_stft_loss': stft_loss}
+        if self.use_RSSloss:
+            rss_loss = self.rss(Gwav[: b], Rwav[: b]) * self.lab_aux_stft_loss
+            loss = mel_loss + rss_loss
+            return loss, {'aux_mel_loss': mel_loss, 'aux_rss_loss': rss_loss}
+            
         return mel_loss, {'aux_mel_loss': mel_loss}
     

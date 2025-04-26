@@ -256,7 +256,7 @@ class HiFivae_task(GanBaseTask):
             2. calculate losses if not infer
         """
         wav,z, m, logs=self.generator(x=sample['audio'],)
-        return {'audio':wav,'lossxxs':[z, m, logs]}
+        return {'audio':wav, 'lossxxs':[z, m, logs]}
 
     def Dforward(self, Goutput):
         msd_out,msd_feature=self.discriminator['msd'](Goutput)

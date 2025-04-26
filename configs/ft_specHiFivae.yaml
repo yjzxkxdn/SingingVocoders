@@ -2,9 +2,10 @@
 base_config:
   - configs/base_hifi.yaml
 
-data_input_path: []
-data_out_path: []
-val_num: 10
+data_input_path: [wav]
+data_out_path: [out]
+val_num: 2
+return_type: "mel+linear"
 
 pe: 'parselmouth' # 'parselmouth' or 'harvest'
 f0_min: 65
@@ -24,8 +25,16 @@ use_stftloss: false
 loss_fft_sizes: [2048, 2048, 4096, 1024, 512, 256, 128,1024, 2048, 512]
 loss_hop_sizes: [512, 240, 480, 100, 50, 25, 12,120, 240, 50]
 loss_win_lengths: [2048, 1200, 2400, 480, 240, 120, 60,600, 1200, 240]
-lab_aux_melloss: 45
-lab_aux_stftloss: 2.5
+
+use_RSSloss: true
+RSS_fft_min: 256
+RSS_fft_max: 2048
+RSS_n_scale: 4
+
+kl_loss_weight: 0.000001
+
+lab_aux_melloss: 4
+lab_aux_stftloss: 15
 
 raw_data_dir: []
 binary_data_dir: null
@@ -42,8 +51,8 @@ volume_aug: true
 volume_aug_prob: 0.5
 
 
-mel_vmin: -6. #-6.
-mel_vmax: 1.5
+mel_vmin: -14. #-6.
+mel_vmax: 4.
 
 
 audio_sample_rate: 44100
@@ -65,7 +74,7 @@ crop_mel_frames: 32
 
 
 #model_cls: training.nsf_HiFigan_task.nsf_HiFigan
-model_args:
+g_model_args:
   mini_nsf: true
   noise_sigma: 0.05
   upsample_rates: [ 8, 8, 2, 2, 2 ]
@@ -76,9 +85,18 @@ model_args:
   discriminator_periods: [ 3, 5, 7, 11, 17, 23, 37 ]
   resblock: "1"
 
+e_model_args:
+  inter_channels: 128    # 和mel_channels一样
+  resblock: "2"
+  resblock_kernel_sizes: [3,5]
+  resblock_dilation_sizes: [[3,5],[3,5]]
+  downsample_rates: [1,1]
+  downsample_kernel_sizes: [5,5]
+  downsample_channels: [1025,512,256]
+
 # training
 
-task_cls: training.nsf_HiFigan_task.nsf_HiFigan
+task_cls: training.spec_nsf_HiFivae_task.spec_nsf_HiFivae
 
 
 #sort_by_len: true
@@ -114,7 +132,7 @@ sampler_frame_count_grid: 6
 ds_workers: 4
 dataloader_prefetch_factor: 2
 
-batch_size: 10
+batch_size: 2
 
 
 
@@ -149,6 +167,7 @@ seed: 114514
 
 finetune_enabled: true
 finetune_ckpt_path: pc_nsf_hifigan_44.1k_hop512_128bin_2025.02.ckpt
+encoder_ckpt_path: "experiments/mrl_encoder1/model_ckpt_steps_18000.ckpt"
 finetune_ignored_params: []
 finetune_strict_shapes: true
 

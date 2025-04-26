@@ -18,6 +18,7 @@ class PitchAdjustableMelSpectrogram:
         f_max=16000,
         n_mels=128,
         center=False,
+        return_type = 'mel',
     ):
         self.sample_rate = sample_rate
         self.n_fft = n_fft
@@ -27,7 +28,7 @@ class PitchAdjustableMelSpectrogram:
         self.f_max = f_max
         self.n_mels = n_mels
         self.center = center
-
+        self.return_type = return_type
         self.mel_basis = {}
         self.hann_window = {}
 
@@ -36,11 +37,6 @@ class PitchAdjustableMelSpectrogram:
         n_fft_new = int(np.round(self.n_fft * factor))
         win_size_new = int(np.round(self.win_size * factor))
         hop_length = int(np.round(self.hop_length * speed))
-
-        # if torch.min(y) < -1.0:
-        #     logger.warning(f"min value is {torch.min(y)}")
-        # if torch.max(y) > 1.0:
-        #     logger.warning(f"max value is {torch.max(y)}")
 
         mel_basis_key = f"{self.f_max}_{y.device}"
         if mel_basis_key not in self.mel_basis:
@@ -81,8 +77,6 @@ class PitchAdjustableMelSpectrogram:
             onesided=True,
             return_complex=True,
         ).abs()
-        # spec = torch.view_as_real(spec)
-        # spec = torch.sqrt(spec.pow(2).sum(-1) + (1e-9))
 
         if key_shift != 0:
             size = self.n_fft // 2 + 1
@@ -92,12 +86,22 @@ class PitchAdjustableMelSpectrogram:
 
             spec = spec[:, :size, :] * self.win_size / win_size_new
 
-        spec = torch.matmul(self.mel_basis[mel_basis_key], spec)
+        mel_spec = torch.matmul(self.mel_basis[mel_basis_key], spec)
 
-        return spec
+        if self.return_type =='mel':
+            return mel_spec
+        elif self.return_type == 'linear':
+            return spec
+        elif self.return_type == 'mel+linear':
+            return mel_spec, spec
+        else:
+            raise ValueError(f"Invalid return_type: {self.return_type}, should be 'linear','mel', or 'mel+linear'")
+            
+
 
     def dynamic_range_compression_torch(self,x, C=1, clip_val=1e-5):
         return torch.log(torch.clamp(x, min=clip_val) * C)
+
 
 if __name__=='__main__':
     import glob

@@ -1,33 +1,15 @@
-# preprocessing
-base_config:
-  - configs/base_hifi.yaml
-
-data_input_path: []
-data_out_path: []
-val_num: 10
+data_input_path: [wav]
+data_out_path: [out]
+val_num: 2
+return_type: "mel+linear"
 
 pe: 'parselmouth' # 'parselmouth' or 'harvest'
 f0_min: 65
 f0_max: 1100
-
 aug_min: 0.9
 aug_max: 1.4
 aug_num: 1
-key_aug: false
-key_aug_prob: 0.5
 
-pc_aug: true # pc-nsf training method
-pc_aug_rate: 0.4
-pc_aug_key: 12
-
-use_stftloss: false
-loss_fft_sizes: [2048, 2048, 4096, 1024, 512, 256, 128,1024, 2048, 512]
-loss_hop_sizes: [512, 240, 480, 100, 50, 25, 12,120, 240, 50]
-loss_win_lengths: [2048, 1200, 2400, 480, 240, 120, 60,600, 1200, 240]
-lab_aux_melloss: 45
-lab_aux_stftloss: 2.5
-
-raw_data_dir: []
 binary_data_dir: null
 binarization_args:
   num_workers: 8
@@ -56,52 +38,34 @@ fmax: 16000
 fmax_for_loss: null
 crop_mel_frames: 32
 
-
+kl_weight: 0
 
 # global constants
 
 
 # neural networks
 
-
-#model_cls: training.nsf_HiFigan_task.nsf_HiFigan
 model_args:
-  mini_nsf: true
-  noise_sigma: 0.05
-  upsample_rates: [ 8, 8, 2, 2, 2 ]
-  upsample_kernel_sizes: [ 16,16, 4, 4, 4 ]
-  upsample_initial_channel: 512
-  resblock_kernel_sizes: [ 3,7,11 ]
-  resblock_dilation_sizes: [ [ 1,3,5 ], [ 1,3,5 ], [ 1,3,5 ] ]
-  discriminator_periods: [ 3, 5, 7, 11, 17, 23, 37 ]
-  resblock: "1"
+  inter_channels: 128    # 和mel_channels一样
+  resblock: "2"
+  resblock_kernel_sizes: [3,5]
+  resblock_dilation_sizes: [[3,5],[3,5]]
+  downsample_rates: [1,1]
+  downsample_kernel_sizes: [5,5]
+  downsample_channels: [1025,512,256]
 
 # training
 
-task_cls: training.nsf_HiFigan_task.nsf_HiFigan
+task_cls: training.spec2melEncoder_task.Spec2MelEncoder
 
 
-#sort_by_len: true
-#optimizer_args:
-#  optimizer_cls: torch.optim.AdamW
-#  lr: 0.0001
-#  beta1: 0.9
-#  beta2: 0.98
-#  weight_decay: 0
-#lab_aux_loss: 0.5
-discriminate_optimizer_args:
+optimizer_args:
   optimizer_cls: torch.optim.AdamW
   lr: 0.00001
   beta1: 0.8
   beta2: 0.99
   weight_decay: 0
 
-generater_optimizer_args:
-  optimizer_cls: torch.optim.AdamW
-  lr: 0.00001
-  beta1: 0.8
-  beta2: 0.99
-  weight_decay: 0
 
 lr_scheduler_args:
   scheduler_cls: lr_scheduler.scheduler.WarmupLR
@@ -114,7 +78,7 @@ sampler_frame_count_grid: 6
 ds_workers: 4
 dataloader_prefetch_factor: 2
 
-batch_size: 10
+batch_size: 15
 
 
 
@@ -142,15 +106,3 @@ pl_trainer_strategy:
   find_unused_parameters: true
 nccl_p2p: true
 seed: 114514
-
-###########
-# finetune
-###########
-
-finetune_enabled: true
-finetune_ckpt_path: pc_nsf_hifigan_44.1k_hop512_128bin_2025.02.ckpt
-finetune_ignored_params: []
-finetune_strict_shapes: true
-
-freezing_enabled: false
-frozen_params: []
